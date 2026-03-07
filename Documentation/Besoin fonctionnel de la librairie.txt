@@ -1,0 +1,146 @@
+Besoin fonctionnel — Librairie Compare (Hestia)
+Introduction
+La librairie Compare fournit un moteur minimal de comparaison et de détection d’événements logiques destiné aux systèmes embarqués structurés autour d’un cycle principal déterministe (loop()).
+Elle vise à rendre explicites, lisibles et cohérentes les opérations de comparaison habituellement dispersées dans le code (tests old/new, seuils, transitions), tout en évitant :
+	•	la multiplication de variables intermédiaires,
+	•	les effets de bord liés aux callbacks asynchrones,
+	•	les logiques implicites difficiles à raisonner ou à déboguer.
+Compare s’inscrit dans la continuité conceptuelle de HestiaTempo :
+	•	Tempo rend le temps implicite explicite.
+	•	Compare rend les transitions et comparaisons d’état explicites.
+
+Familles de comparaison
+Compare distingue deux familles orthogonales de comparaisons.
+1. Comparaisons événementielles (stateful)
+Ces comparaisons :
+	•	maintiennent un état interne (old / now),
+	•	détectent des transitions entre deux écritures successives,
+	•	produisent des événements consommables par cycle logique.
+Elles sont synchronisées par appel explicite à write() et suivent un modèle événementiel déterministe inspiré des PLC et FSM industrielles.
+Types d’événements supportés :
+	•	changement d’état (diff)
+	•	front montant (rise)
+	•	front descendant (fall)
+	•	variation significative
+	•	franchissement de cible
+Ces comparaisons sont adaptées à :
+	•	la logique de contrôle,
+	•	l’orchestration d’actions,
+	•	l’intégration avec Tempo et des FSM.
+
+2. Comparaisons opératoires (stateless)
+Les comparaisons opératoires :
+	•	ne maintiennent aucun état interne,
+	•	sont évaluées à chaque appel,
+	•	ne produisent aucun événement consommable.
+Elles servent aux :
+	•	tests immédiats,
+	•	conditions locales,
+	•	vérifications d’état (ex. >=, <=).
+Elles ne font pas partie du moteur événementiel et ne sont pas synchronisées par cycle.
+
+Typage et politiques de comparaison
+Compare supporte les types suivants :
+	•	bool
+	•	int
+	•	float
+	•	string
+Pour les types numériques continus ou bruités (notamment float), les comparaisons événementielles reposent sur :
+	•	des zones mortes (delta) pour les variations,
+	•	des tolérances pour les cibles, afin d’éviter les déclenchements instables liés aux fluctuations numériques.
+
+Modèle d’exécution
+Le fonctionnement de Compare repose sur un contrat explicite :
+	•	Les valeurs sont acquises et écrites pendant une phase dédiée du cycle.
+	•	Les événements sont évalués et consommés pendant une phase distincte.
+	•	Aucun événement ne traverse implicitement les cycles.
+	•	Un événement non consommé avant la prochaine écriture est perdu.
+Ce modèle garantit un comportement :
+	•	déterministe,
+	•	reproductible,
+	•	compatible avec des architectures embarquées complexes.
+
+Invariants fondamentaux — Compare
+Invariant 1 — Cycle logique explicite
+Toute détection événementielle est synchronisée par le cycle principal (loop()). Les écritures (write()) délimitent des cycles logiques.
+
+Invariant 2 — Écriture explicite et unique par cycle
+L’état observé par Compare ne peut évoluer que par appel explicite à write(). Aucune comparaison événementielle ne modifie l’état interne.
+
+Invariant 3 — Événement consommable par cycle
+Un événement logique est vrai au plus une fois par écriture. Une fois consommé, il ne peut être redéclenché qu’après une nouvelle écriture.
+
+Invariant 4 — Indépendance des détecteurs
+Chaque type de détection possède sa mémoire propre. La consommation d’un événement n’affecte pas les autres.
+
+Invariant 5 — Aucune propagation implicite
+Compare ne déclenche aucune action, callback ou écriture implicite. Toute réaction relève exclusivement du code utilisateur.
+
+Invariant 6 — Décalage des effets
+Un événement ne peut produire qu’un état, jamais un autre événement dans le même cycle. Les effets sont observables uniquement au cycle suivant.
+
+Principe directeur de l’API
+L’API doit rendre toute violation des invariants impossible ou immédiatement visible.
+Conséquences :
+	•	séparation stricte écriture / lecture,
+	•	aucune écriture implicite,
+	•	aucune lecture destructrice,
+	•	aucune API ambiguë (onRise(x) interdit).
+
+Objet central — Compare::event
+Chaque comparaison événementielle est associée à un événement identifié.
+auto& e = Compare::event("POMPE_RUN"_id);
+	•	un event = un état logique observé dans le temps,
+	•	identifié par un Id (même logique que Tempo),
+	•	singleton logique par Id.
+
+Phase d’écriture (acquisition)
+Écriture typée
+void write(bool value);
+void write(int value);
+void write(float value);
+void write(const char* value);
+Règles :
+	•	write() démarre un nouveau cycle logique,
+	•	old et now sont mis à jour,
+	•	aucune comparaison n’est évaluée à ce moment.
+Exemple :
+Compare::event("POMPE_RUN"_id).write(pompe_gpio);
+
+Comparaisons événementielles — API complète
+Bool
+bool diff();   // old != new
+bool rise();   // false → true
+bool fall();   // true → false
+
+Numérique (int, float) — variation (référence = old)
+bool diff(T delta);            // |new - old| > delta
+bool increasing(T delta);     // new > old + delta
+bool decreasing(T delta);     // new < old - delta
+
+Numérique (int, float) — franchissement de cible
+bool equal(T target, T tol = 0);   // atteint la cible
+bool greater(T target, T tol = 0); // franchit la cible vers le haut
+bool less(T target, T tol = 0);    // franchit la cible vers le bas
+
+Numérique — bornes absolues
+bool outOfRange(T min, T max);
+
+String
+bool diff();                     // new != old
+bool equal(const char* value);   // new devient égal à value
+
+Helpers d’introspection (lecture uniquement)
+Ces helpers n’ont aucun effet de bord et sont valides jusqu’au prochain write().
+read.old();        // ancienne valeur
+read.now();        // valeur courante
+read.delta();      // new - old (numérique)
+read.absDelta();   // |new - old|
+
+Remarque finale
+Compare est volontairement :
+	•	contraignant,
+	•	explicite,
+	•	non magique.
+Ces contraintes ne réduisent pas la puissance du système ; elles en garantissent la lisibilité, la robustesse et la maintenabilité dans le temps, en particulier lorsqu’il est combiné avec Tempo et des FSM complexes.
+
