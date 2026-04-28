@@ -18,6 +18,9 @@
 // Compare stores two samples per Id:
 //   - old : previous written value
 //   - now : last written value
+// Numeric diff(delta), increasing(delta), and decreasing(delta) also store
+// their own reference values, initialized by the first write() and refreshed
+// only when the corresponding detector returns true.
 //
 // Event methods are "latched per write":
 //   - Each event can return true at most once after a write().
@@ -147,26 +150,62 @@ namespace Compare {
     bool fall();
 
     // ------------------------------------------------------------------------
-    // Numeric Events — Variation (reference = old) (latched)
+    // Numeric Events — Variation (reference = last detector trigger) (latched)
     // ------------------------------------------------------------------------
 
-    /// @brief Event (int): |now - old| > delta
+    /// @brief Event (int): |now - reference| > delta.
+    ///
+    /// The reference is initialized on the first write() and updated only when
+    /// this detector returns true.
     bool diff(int delta);
 
-    /// @brief Event (int): now > old + delta
+    /// @brief Event (int): |now - old| > delta.
+    bool sampleDiff(int delta);
+
+    /// @brief Event (int): now > reference + delta.
+    ///
+    /// The reference is initialized on the first write() and updated only when
+    /// this detector returns true.
     bool increasing(int delta);
 
-    /// @brief Event (int): now < old - delta
+    /// @brief Event (int): now > old + delta.
+    bool sampleIncreasing(int delta);
+
+    /// @brief Event (int): now < reference - delta.
+    ///
+    /// The reference is initialized on the first write() and updated only when
+    /// this detector returns true.
     bool decreasing(int delta);
 
-    /// @brief Event (float): |now - old| > delta
+    /// @brief Event (int): now < old - delta.
+    bool sampleDecreasing(int delta);
+
+    /// @brief Event (float): |now - reference| > delta.
+    ///
+    /// The reference is initialized on the first write() and updated only when
+    /// this detector returns true.
     bool diff(float delta);
 
-    /// @brief Event (float): now > old + delta
+    /// @brief Event (float): |now - old| > delta.
+    bool sampleDiff(float delta);
+
+    /// @brief Event (float): now > reference + delta.
+    ///
+    /// The reference is initialized on the first write() and updated only when
+    /// this detector returns true.
     bool increasing(float delta);
 
-    /// @brief Event (float): now < old - delta
+    /// @brief Event (float): now > old + delta.
+    bool sampleIncreasing(float delta);
+
+    /// @brief Event (float): now < reference - delta.
+    ///
+    /// The reference is initialized on the first write() and updated only when
+    /// this detector returns true.
     bool decreasing(float delta);
+
+    /// @brief Event (float): now < old - delta.
+    bool sampleDecreasing(float delta);
 
     // ------------------------------------------------------------------------
     // Numeric Events — Target Crossing (reference = target) (latched)

@@ -14,14 +14,25 @@ namespace Compare
     bool oldBool, nowBool;
     int oldInt, nowInt;
     float oldFloat, nowFloat;
+    int refInt;
+    float refFloat;
+    int refIncreasingInt, refDecreasingInt;
+    float refIncreasingFloat, refDecreasingFloat;
+    bool hasRefInt, hasRefFloat;
+    bool hasRefIncreasingInt, hasRefDecreasingInt;
+    bool hasRefIncreasingFloat, hasRefDecreasingFloat;
     const char *oldStr;
     const char *nowStr;
 
     // Latches
     bool latch_diff, latch_rise, latch_fall;
-    bool latch_diff_int, latch_increasing_int, latch_decreasing_int;
+    bool latch_diff_int, latch_sampleDiff_int;
+    bool latch_increasing_int, latch_sampleIncreasing_int;
+    bool latch_decreasing_int, latch_sampleDecreasing_int;
     bool latch_equal_int, latch_greater_int, latch_less_int, latch_outOfRange_int;
-    bool latch_diff_float, latch_increasing_float, latch_decreasing_float;
+    bool latch_diff_float, latch_sampleDiff_float;
+    bool latch_increasing_float, latch_sampleIncreasing_float;
+    bool latch_decreasing_float, latch_sampleDecreasing_float;
     bool latch_equal_float, latch_greater_float, latch_less_float, latch_outOfRange_float;
     bool latch_diffStr, latch_equal_str;
   };
@@ -50,6 +61,18 @@ namespace Compare
       states[num_events].nowInt = 0;
       states[num_events].oldFloat = 0.0f;
       states[num_events].nowFloat = 0.0f;
+      states[num_events].refInt = 0;
+      states[num_events].refFloat = 0.0f;
+      states[num_events].refIncreasingInt = 0;
+      states[num_events].refDecreasingInt = 0;
+      states[num_events].refIncreasingFloat = 0.0f;
+      states[num_events].refDecreasingFloat = 0.0f;
+      states[num_events].hasRefInt = false;
+      states[num_events].hasRefFloat = false;
+      states[num_events].hasRefIncreasingInt = false;
+      states[num_events].hasRefDecreasingInt = false;
+      states[num_events].hasRefIncreasingFloat = false;
+      states[num_events].hasRefDecreasingFloat = false;
       states[num_events].oldStr = "";
       states[num_events].nowStr = "";
       resetLatches(states[num_events]);
@@ -65,15 +88,21 @@ namespace Compare
     s.latch_rise = false;
     s.latch_fall = false;
     s.latch_diff_int = false;
+    s.latch_sampleDiff_int = false;
     s.latch_increasing_int = false;
+    s.latch_sampleIncreasing_int = false;
     s.latch_decreasing_int = false;
+    s.latch_sampleDecreasing_int = false;
     s.latch_equal_int = false;
     s.latch_greater_int = false;
     s.latch_less_int = false;
     s.latch_outOfRange_int = false;
     s.latch_diff_float = false;
+    s.latch_sampleDiff_float = false;
     s.latch_increasing_float = false;
+    s.latch_sampleIncreasing_float = false;
     s.latch_decreasing_float = false;
+    s.latch_sampleDecreasing_float = false;
     s.latch_equal_float = false;
     s.latch_greater_float = false;
     s.latch_less_float = false;
@@ -110,6 +139,21 @@ namespace Compare
     State &s = getState(_id);
     s.oldInt = s.nowInt;
     s.nowInt = value;
+    if (!s.hasRefInt)
+    {
+      s.refInt = value;
+      s.hasRefInt = true;
+    }
+    if (!s.hasRefIncreasingInt)
+    {
+      s.refIncreasingInt = value;
+      s.hasRefIncreasingInt = true;
+    }
+    if (!s.hasRefDecreasingInt)
+    {
+      s.refDecreasingInt = value;
+      s.hasRefDecreasingInt = true;
+    }
     resetLatches(s);
   }
 
@@ -118,6 +162,21 @@ namespace Compare
     State &s = getState(_id);
     s.oldFloat = s.nowFloat;
     s.nowFloat = value;
+    if (!s.hasRefFloat)
+    {
+      s.refFloat = value;
+      s.hasRefFloat = true;
+    }
+    if (!s.hasRefIncreasingFloat)
+    {
+      s.refIncreasingFloat = value;
+      s.hasRefIncreasingFloat = true;
+    }
+    if (!s.hasRefDecreasingFloat)
+    {
+      s.refDecreasingFloat = value;
+      s.hasRefDecreasingFloat = true;
+    }
     resetLatches(s);
   }
 
@@ -165,9 +224,26 @@ namespace Compare
   bool Event::diff(int delta)
   {
     State &s = getState(_id);
-    if (!s.latch_diff_int && (std::abs(s.nowInt - s.oldInt) > delta))
+    if (!s.hasRefInt)
     {
+      s.refInt = s.nowInt;
+      s.hasRefInt = true;
+    }
+    if (!s.latch_diff_int && (std::abs(s.nowInt - s.refInt) > delta))
+    {
+      s.refInt = s.nowInt;
       s.latch_diff_int = true;
+      return true;
+    }
+    return false;
+  }
+
+  bool Event::sampleDiff(int delta)
+  {
+    State &s = getState(_id);
+    if (!s.latch_sampleDiff_int && (std::abs(s.nowInt - s.oldInt) > delta))
+    {
+      s.latch_sampleDiff_int = true;
       return true;
     }
     return false;
@@ -176,9 +252,26 @@ namespace Compare
   bool Event::increasing(int delta)
   {
     State &s = getState(_id);
-    if (!s.latch_increasing_int && (s.nowInt > s.oldInt + delta))
+    if (!s.hasRefIncreasingInt)
     {
+      s.refIncreasingInt = s.nowInt;
+      s.hasRefIncreasingInt = true;
+    }
+    if (!s.latch_increasing_int && (s.nowInt > s.refIncreasingInt + delta))
+    {
+      s.refIncreasingInt = s.nowInt;
       s.latch_increasing_int = true;
+      return true;
+    }
+    return false;
+  }
+
+  bool Event::sampleIncreasing(int delta)
+  {
+    State &s = getState(_id);
+    if (!s.latch_sampleIncreasing_int && (s.nowInt > s.oldInt + delta))
+    {
+      s.latch_sampleIncreasing_int = true;
       return true;
     }
     return false;
@@ -187,9 +280,26 @@ namespace Compare
   bool Event::decreasing(int delta)
   {
     State &s = getState(_id);
-    if (!s.latch_decreasing_int && (s.nowInt < s.oldInt - delta))
+    if (!s.hasRefDecreasingInt)
     {
+      s.refDecreasingInt = s.nowInt;
+      s.hasRefDecreasingInt = true;
+    }
+    if (!s.latch_decreasing_int && (s.nowInt < s.refDecreasingInt - delta))
+    {
+      s.refDecreasingInt = s.nowInt;
       s.latch_decreasing_int = true;
+      return true;
+    }
+    return false;
+  }
+
+  bool Event::sampleDecreasing(int delta)
+  {
+    State &s = getState(_id);
+    if (!s.latch_sampleDecreasing_int && (s.nowInt < s.oldInt - delta))
+    {
+      s.latch_sampleDecreasing_int = true;
       return true;
     }
     return false;
@@ -244,9 +354,26 @@ namespace Compare
   bool Event::diff(float delta)
   {
     State &s = getState(_id);
-    if (!s.latch_diff_float && (std::fabs(s.nowFloat - s.oldFloat) > delta))
+    if (!s.hasRefFloat)
     {
+      s.refFloat = s.nowFloat;
+      s.hasRefFloat = true;
+    }
+    if (!s.latch_diff_float && (std::fabs(s.nowFloat - s.refFloat) > delta))
+    {
+      s.refFloat = s.nowFloat;
       s.latch_diff_float = true;
+      return true;
+    }
+    return false;
+  }
+
+  bool Event::sampleDiff(float delta)
+  {
+    State &s = getState(_id);
+    if (!s.latch_sampleDiff_float && (std::fabs(s.nowFloat - s.oldFloat) > delta))
+    {
+      s.latch_sampleDiff_float = true;
       return true;
     }
     return false;
@@ -255,9 +382,26 @@ namespace Compare
   bool Event::increasing(float delta)
   {
     State &s = getState(_id);
-    if (!s.latch_increasing_float && (s.nowFloat > s.oldFloat + delta))
+    if (!s.hasRefIncreasingFloat)
     {
+      s.refIncreasingFloat = s.nowFloat;
+      s.hasRefIncreasingFloat = true;
+    }
+    if (!s.latch_increasing_float && (s.nowFloat > s.refIncreasingFloat + delta))
+    {
+      s.refIncreasingFloat = s.nowFloat;
       s.latch_increasing_float = true;
+      return true;
+    }
+    return false;
+  }
+
+  bool Event::sampleIncreasing(float delta)
+  {
+    State &s = getState(_id);
+    if (!s.latch_sampleIncreasing_float && (s.nowFloat > s.oldFloat + delta))
+    {
+      s.latch_sampleIncreasing_float = true;
       return true;
     }
     return false;
@@ -266,9 +410,26 @@ namespace Compare
   bool Event::decreasing(float delta)
   {
     State &s = getState(_id);
-    if (!s.latch_decreasing_float && (s.nowFloat < s.oldFloat - delta))
+    if (!s.hasRefDecreasingFloat)
     {
+      s.refDecreasingFloat = s.nowFloat;
+      s.hasRefDecreasingFloat = true;
+    }
+    if (!s.latch_decreasing_float && (s.nowFloat < s.refDecreasingFloat - delta))
+    {
+      s.refDecreasingFloat = s.nowFloat;
       s.latch_decreasing_float = true;
+      return true;
+    }
+    return false;
+  }
+
+  bool Event::sampleDecreasing(float delta)
+  {
+    State &s = getState(_id);
+    if (!s.latch_sampleDecreasing_float && (s.nowFloat < s.oldFloat - delta))
+    {
+      s.latch_sampleDecreasing_float = true;
       return true;
     }
     return false;

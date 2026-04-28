@@ -39,9 +39,7 @@ void loop()
   // Phase décision : vérifier les événements
   if (Compare::event(temp_id).diff(2))
   {
-    Serial.print("Température changée de plus de 2°C: ");
-    Serial.print(Compare::event(temp_id).read().oldInt());
-    Serial.print(" -> ");
+    Serial.print("Température changée de plus de 2°C depuis le dernier déclenchement: ");
     Serial.println(Compare::event(temp_id).read().nowInt());
   }
 

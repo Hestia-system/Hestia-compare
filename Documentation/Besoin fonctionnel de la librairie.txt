@@ -113,10 +113,13 @@ bool diff();   // old != new
 bool rise();   // false → true
 bool fall();   // true → false
 
-Numérique (int, float) — variation (référence = old)
-bool diff(T delta);            // |new - old| > delta
-bool increasing(T delta);     // new > old + delta
-bool decreasing(T delta);     // new < old - delta
+Numérique (int, float) — variation
+bool diff(T delta);               // |new - dernière valeur ayant déclenché diff| > delta
+bool increasing(T delta);         // new > dernière valeur ayant déclenché increasing + delta
+bool decreasing(T delta);         // new < dernière valeur ayant déclenché decreasing - delta
+bool sampleDiff(T delta);         // |new - old| > delta
+bool sampleIncreasing(T delta);   // new > old + delta
+bool sampleDecreasing(T delta);   // new < old - delta
 
 Numérique (int, float) — franchissement de cible
 bool equal(T target, T tol = 0);   // atteint la cible
@@ -143,4 +146,3 @@ Compare est volontairement :
 	•	explicite,
 	•	non magique.
 Ces contraintes ne réduisent pas la puissance du système ; elles en garantissent la lisibilité, la robustesse et la maintenabilité dans le temps, en particulier lorsqu’il est combiné avec Tempo et des FSM complexes.
-
